@@ -1,0 +1,37 @@
+[ TRL_PROJECT_TREE :: TrollKing ]
+.
+|-- .env.example
+|-- .gitignore
+|-- electron
+|   |-- main.cjs
+|   L-- preload.cjs
+|-- index.html
+|-- metadata.json
+|-- package-lock.json
+|-- package.json
+|-- README.md
+|-- scripts
+|   L-- run-jazz.mjs
+|-- src
+|   |-- App.tsx
+|   |-- components
+|   |   |-- AlbumArtwork.tsx
+|   |   |-- ArtistInspector.tsx
+|   |   |-- EqualizerView.tsx
+|   |   |-- SmartPlaylistView.tsx
+|   |   |-- VisualizerRack.tsx
+|   |   L-- YearInReviewView.tsx
+|   |-- data
+|   |   L-- demoLibrary.ts
+|   |-- index.css
+|   |-- main.tsx
+|   |-- types
+|   |   L-- audio.ts
+|   L-- utils
+|       |-- artistService.ts
+|       |-- audioEngine.ts
+|       |-- flacParser.ts
+|       L-- smartFilter.ts
+|-- tree.js
+|-- tsconfig.json
+L-- vite.config.ts

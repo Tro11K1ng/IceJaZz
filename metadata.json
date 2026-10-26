@@ -1,0 +1,6 @@
+{
+  "name": "Sonora Hi-Fi Audio Workstation",
+  "description": "Десктопный Hi-Fi аудиоплеер и менеджер локальной FLAC-фонотеки в стиле MusicBee и Foobar2000 с 10-полосным эквалайзером, визуализатором спектра, смарт-плейлистами и инфографикой прослушиваний за любой период.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
