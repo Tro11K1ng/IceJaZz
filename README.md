@@ -1,4 +1,4 @@
-# [ TRL-IceJaZz-Core :: TrollKing ]
+# TRL-IceJaZz-Core
 
 A high-performance, strictly local audio engine built for massive libraries and zero UI clutter. IceJaZz relies on a brutalist terminal aesthetic, hardware-accelerated DSP, and deep OS integration. No cloud, no recommendation feeds, no background telemetry. Absolute control over your sound.
 
@@ -28,6 +28,3 @@ A high-performance, strictly local audio engine built for massive libraries and 
 *   **Overlay Mode:** Always-on-top compact HUD with adjustable opacity, showing visualizers, scrolling track info, and playback progress.
 *   **Discord Rich Presence (RPC):** Broadcasts "Listening to...", track data, cover icons, and progress timers directly to your Discord profile via local IPC socket.
 *   **Background Execution:** Minimizes to the Windows System Tray with context controls (Play/Pause, Next, Toggle Overlay). Supports silent launch on OS startup.
-
-**ENGINE_OWNER:** TrollKing
-**STATUS:** ACTIVE_DEVELOPMENT
