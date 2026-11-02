@@ -1,34 +1,33 @@
 # [ TRL-IceJaZz-Core :: TrollKing ]
 
-A brutalist, local-first audio workstation built for users who despise modern corporate UI clutter, recommendation algorithms, and cloud synchronization. IceJaZz is designed to return absolute control over your media library back to you. There are no rounded corners, no soft gradients, and no hidden background telemetry - just raw data, pure sound, and a terminal-inspired aesthetic.
+A high-performance, strictly local audio engine built for massive libraries and zero UI clutter. IceJaZz relies on a brutalist terminal aesthetic, hardware-accelerated DSP, and deep OS integration. No cloud, no recommendation feeds, no background telemetry. Absolute control over your sound.
 
-I built IceJaZz to focus on two things: uncompromising audio fidelity and high-contrast, text-driven functional design. Under the hood, it features a custom hardware-accelerated Web Audio engine with a 10-band equalizer, giving you maximum performance from your FLAC archives.
+## CORE_ARCHITECTURE
 
-## CORE_FEATURES
+### 01. AUDIO_ENGINE & PLAYBACK
+*   **Native Blob Streaming:** Seamless local file reading via IPC protocol directly into isolated Blobs. Bypasses CORS limitations, allowing simultaneous high-res audio playback, EQ routing, and spectrum processing.
+*   **Codec Support:** FLAC, WAV, MP3, OGG, OPUS, M4A, AAC, WEBM, AIFF, ALAC.
+*   **Logarithmic Volume Math:** Custom logarithmic curve (volume^2.2) for precise low-end control and full dynamic range execution at max levels, working in tandem with the EQ preamp.
+*   **Hardware DSP:** Integrated 10-band parametric equalizer (32 Hz - 16 kHz) via WebAudio BiquadFilterNode cascade. Includes global Preamp (-12 dB to +12 dB), custom preset writing, and bypass switches.
 
-* **Zero UI Slop:** The interface is built entirely on monospaced typography, strict spatial balance, and high-contrast accents. It is a tool, not a toy.
-* **Absolute Local Independence:** No server syncing, no data harvesting, no mandatory accounts. Your files remain exclusively on your local hard drive.
-* **Dynamic Smart Filtering:** Create complex, rule-based playlists using nested AND / OR logic gates. Filter your tracks by sample rate, bit depth, custom tags, and playback cycles.
-* **Hardware-Accelerated DSP:** A fully integrated 10-band parametric equalizer, preamp gain control, and seamless track crossfading, all processed locally without latency.
-* **Real-Time Telemetry:** Monitor your listening habits with detailed, locally generated statistics. Analyze your most played containers, peak listening hours, and lossless ratio without sending a single byte over the network.
+### 02. MASSIVE_LIBRARY_PROCESSING
+*   **Zero-Lag Virtualization:** The DOM only renders rows currently visible in the viewport. Scrolling and playback execution for 4000+ tracks is instantaneous without memory leaks.
+*   **Recursive Deep Scan:** Rapid background parsing of nested directories. Extracts ID3v2, Vorbis Comments, and MP4/M4A tags. Pulls APIC/METADATA_block_picture for covers and USLT/SYLT for embedded lyrics.
+*   **Data Views:** Switch between Global Tracklist, Artist Cards, Album Grid, and Genre Catalogs. Includes instant search and rating filters (Unrated to 5-Star).
 
-## TECH_STACK
+### 03. LYRICS & METADATA_CONTROL
+*   **Synced Lyrics Engine:** Auto-parses LRC timecodes [mm:ss.xx]. The UI highlights and scrolls to the active line. Click any string to instantly seek the track to that exact timestamp.
+*   **Database Editor:** Manually edit lyrics or ID3 metadata (Title, Artist, Album, Rating) directly within the side inspector. Changes are injected into the local database matrix.
 
-* **Frontend Architecture:** React, TypeScript, Vite
-* **Desktop Runtime Environment:** Electron
-* **Audio Processing:** Custom Web Audio API implementation
-* **Visualizer Engine:** Canvas-based real-time spectrum and oscilloscope analysis
+### 04. SMART_LOGIC & TELEMETRY
+*   **Dynamic Playlists:** Auto-generated rule-based track generation (e.g., Top Rated, Favorites, Recently Added, Long Sessions) or custom logical queries via nested AND/OR gates.
+*   **Local Statistics:** Real-time tracking of runtime, top nodes, hourly activity, and lossless ratio. Full JSON export/import capability for telemetry backup.
 
-## INIT_SEQUENCE
-
-If you want to deploy the engine locally, follow these steps:
-
-1. **Mount Dependencies:** 
-   Run `npm install` to fetch all required local packages.
-2. **Boot Development Server:** 
-   Run `npm run dev` to launch the application in web mode.
-3. **Launch Native Desktop Client:** 
-   Run `npm run jazz` to compile and open the standalone native desktop environment with system tray integration.
+### 05. SYSTEM_INTEGRATION & UI
+*   **Customization Engine:** 6 built-in brutalist themes, granular HEX color editing (Base, Surface, Accent), adjustable UI borders (1px - 4px), and CRT scanline toggles.
+*   **Overlay Mode:** Always-on-top compact HUD with adjustable opacity, showing visualizers, scrolling track info, and playback progress.
+*   **Discord Rich Presence (RPC):** Broadcasts "Listening to...", track data, cover icons, and progress timers directly to your Discord profile via local IPC socket.
+*   **Background Execution:** Minimizes to the Windows System Tray with context controls (Play/Pause, Next, Toggle Overlay). Supports silent launch on OS startup.
 
 **ENGINE_OWNER:** TrollKing
 **STATUS:** ACTIVE_DEVELOPMENT

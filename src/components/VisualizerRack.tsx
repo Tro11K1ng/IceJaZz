@@ -1,4 +1,3 @@
-// filepath: src/components/VisualizerRack.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import { audioEngine } from '../utils/audioEngine';
 
@@ -7,12 +6,19 @@ interface VisualizerRackProps {
   sampleRate?: number;
   bitDepth?: number;
   format?: string;
+  compactFooter?: boolean;
 }
 
 type VisMode = 'spectrum' | 'oscilloscope' | 'meters' | 'off';
 
 export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
-  ({ isPlaying, sampleRate = 44100, bitDepth = 16, format = 'FLAC' }) => {
+  ({
+    isPlaying,
+    sampleRate = 44100,
+    bitDepth = 16,
+    format = 'FLAC',
+    compactFooter = false,
+  }) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const dbReadoutRef = useRef<HTMLDivElement | null>(null);
     const [mode, setMode] = useState<VisMode>('spectrum');
@@ -31,8 +37,30 @@ export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
       const timeBuffer = new Uint8Array(512);
       let frameCount = 0;
 
+      let accentColor = '#b49a1f';
+      let textMainColor = '#f3f4f6';
+      let bgBaseColor = '#000000';
+      let textDimColor = '#6b7280';
+
+      const syncThemeColors = () => {
+        const rootStyle = getComputedStyle(document.documentElement);
+        accentColor =
+          rootStyle.getPropertyValue('--accent').trim() || '#b49a1f';
+        textMainColor =
+          rootStyle.getPropertyValue('--text-main').trim() || '#f3f4f6';
+        bgBaseColor =
+          rootStyle.getPropertyValue('--bg-base').trim() || '#000000';
+        textDimColor =
+          rootStyle.getPropertyValue('--text-dim').trim() || '#6b7280';
+      };
+
+      syncThemeColors();
+
       const drawFrame = () => {
         frameCount++;
+        if (frameCount % 45 === 0) {
+          syncThemeColors();
+        }
         const width = canvas.width;
         const height = canvas.height;
         const analyser = audioEngine.getAnalyserNode();
@@ -62,10 +90,10 @@ export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
           }
         }
 
-        ctx.fillStyle = '#000000'; // Brutalist base background
+        ctx.fillStyle = bgBaseColor;
         ctx.fillRect(0, 0, width, height);
 
-        ctx.strokeStyle = '#333333';
+        ctx.strokeStyle = '#222222';
         ctx.lineWidth = 1;
         for (let y = 1; y < 3; y++) {
           const py = Math.floor((height / 3) * y) + 0.5;
@@ -80,6 +108,7 @@ export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
           const gap = 2;
           const barWidth = (width - gap * (numBars - 1) - 12) / numBars;
           const peaks = peakHoldsRef.current;
+          const bottomPad = compactFooter ? 4 : 13;
 
           for (let i = 0; i < numBars; i++) {
             const binIdx = Math.min(
@@ -87,7 +116,7 @@ export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
               Math.floor(Math.pow(i / numBars, 1.75) * 220) + 1
             );
             const rawVal = freqBuffer[binIdx] / 255;
-            const barHeight = Math.max(2, rawVal * (height - 18));
+            const barHeight = Math.max(2, rawVal * (height - (bottomPad + 5)));
 
             if (barHeight >= peaks[i]) {
               peaks[i] = barHeight;
@@ -96,23 +125,25 @@ export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
             }
 
             const x = 6 + i * (barWidth + gap);
-            const y = height - 13 - barHeight;
+            const y = height - bottomPad - barHeight;
 
-            ctx.fillStyle = '#b49a1f'; // TrollKing accent
+            ctx.fillStyle = accentColor;
             ctx.fillRect(x, y, barWidth, barHeight);
 
-            const peakY = height - 13 - peaks[i] - 2;
-            ctx.fillStyle = '#f3f4f6'; // main text color for peak
+            const peakY = height - bottomPad - peaks[i] - 2;
+            ctx.fillStyle = textMainColor;
             ctx.fillRect(x, Math.max(2, peakY), barWidth, 1.5);
           }
 
-          ctx.fillStyle = '#6b7280';
-          ctx.font = '9px "JetBrains Mono", monospace';
-          const labels = ['31', '125', '500', '2k', '8k', '16k'];
-          labels.forEach((lbl, idx) => {
-            const lx = 8 + idx * ((width - 28) / (labels.length - 1));
-            ctx.fillText(lbl, lx, height - 2);
-          });
+          if (!compactFooter) {
+            ctx.fillStyle = textDimColor;
+            ctx.font = '9px "JetBrains Mono", monospace';
+            const labels = ['31', '125', '500', '2k', '8k', '16k'];
+            labels.forEach((lbl, idx) => {
+              const lx = 8 + idx * ((width - 28) / (labels.length - 1));
+              ctx.fillText(lbl, lx, height - 2);
+            });
+          }
         } else if (mode === 'oscilloscope') {
           ctx.strokeStyle = '#333333';
           ctx.beginPath();
@@ -120,7 +151,7 @@ export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
           ctx.lineTo(width, height / 2);
           ctx.stroke();
 
-          ctx.strokeStyle = '#b49a1f'; // Accent color for wave
+          ctx.strokeStyle = accentColor;
           ctx.lineWidth = 1.6;
           ctx.beginPath();
 
@@ -159,32 +190,45 @@ export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
               : -48;
           const normLevel = Math.max(0, Math.min(1, (db + 48) / 48));
 
-          const channels = [
-            { label: 'L', y: 20, ratio: normLevel },
-            { label: 'R', y: 48, ratio: normLevel * 0.96 },
-          ];
+          const channels = compactFooter
+            ? [
+                { label: 'L', y: Math.floor(height * 0.22), ratio: normLevel },
+                {
+                  label: 'R',
+                  y: Math.floor(height * 0.56),
+                  ratio: normLevel * 0.96,
+                },
+              ]
+            : [
+                { label: 'L', y: 20, ratio: normLevel },
+                { label: 'R', y: 48, ratio: normLevel * 0.96 },
+              ];
           const totalSegments = 30;
-          const meterLeft = 24;
-          const meterWidth = width - meterLeft - 10;
-          const segWidth = (meterWidth - (totalSegments - 1) * 2) / totalSegments;
+          const meterLeft = 22;
+          const meterWidth = width - meterLeft - 8;
+          const segWidth =
+            (meterWidth - (totalSegments - 1) * 2) / totalSegments;
+          const segHeight = compactFooter ? 10 : 12;
 
           channels.forEach((ch) => {
-            ctx.fillStyle = '#6b7280';
+            ctx.fillStyle = textDimColor;
             ctx.font = '10px "JetBrains Mono", monospace';
-            ctx.fillText(ch.label, 8, ch.y + 10);
+            ctx.fillText(ch.label, 6, ch.y + segHeight - 2);
 
-            const activeSegs = isPlaying ? Math.round(ch.ratio * totalSegments) : 0;
+            const activeSegs = isPlaying
+              ? Math.round(ch.ratio * totalSegments)
+              : 0;
             for (let s = 0; s < totalSegments; s++) {
               const sx = meterLeft + s * (segWidth + 2);
               const isLit = s < activeSegs;
               if (!isLit) {
-                ctx.fillStyle = '#111111';
+                ctx.fillStyle = '#181818';
               } else if (s > totalSegments * 0.85) {
-                ctx.fillStyle = '#f3f4f6';
+                ctx.fillStyle = textMainColor;
               } else {
-                ctx.fillStyle = '#b49a1f';
+                ctx.fillStyle = accentColor;
               }
-              ctx.fillRect(sx, ch.y, segWidth, 12);
+              ctx.fillRect(sx, ch.y, segWidth, segHeight);
             }
           });
         }
@@ -199,10 +243,58 @@ export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
       return () => {
         if (animId !== null) cancelAnimationFrame(animId);
       };
-    }, [isPlaying, mode]);
+    }, [isPlaying, mode, compactFooter]);
+
+    if (compactFooter) {
+      return (
+        <div
+          className="relative w-full h-full flex items-center justify-center bg-[var(--bg-base)] select-none cursor-pointer overflow-hidden"
+          onClick={() =>
+            setMode((prev) =>
+              prev === 'spectrum'
+                ? 'oscilloscope'
+                : prev === 'oscilloscope'
+                ? 'meters'
+                : prev === 'meters'
+                ? 'off'
+                : 'spectrum'
+            )
+          }
+          title="Click to cycle visualizer mode (Spectrum / Wave / Peak / ASCII)"
+        >
+          {mode === 'off' ? (
+            <div className="text-[var(--accent)] text-[10px] leading-none whitespace-pre font-extrabold">
+              {"_ ▄ █ ▄ █ ▄ _\n█ █ █ █ █ █ █\n█ █ █ █ █ █ █"}
+            </div>
+          ) : (
+            <>
+              <canvas
+                ref={canvasRef}
+                width={296}
+                height={62}
+                className="w-full h-full block"
+              />
+              <div className="absolute top-1 left-2 text-[9px] font-mono font-bold text-[var(--text-dim)] uppercase pointer-events-none">
+                {mode === 'spectrum'
+                  ? 'SPEC'
+                  : mode === 'oscilloscope'
+                  ? 'WAVE'
+                  : 'PEAK'}
+              </div>
+              <div
+                ref={dbReadoutRef}
+                className="absolute top-1 right-2 text-[9px] font-mono font-bold tabular-nums text-[var(--accent)] pointer-events-none"
+              >
+                -INF dBFS
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
 
     return (
-      <div className="bg-[var(--bg-base)] border-b-[3px] border-[var(--text-main)] p-3 select-none">
+      <div className="bg-[var(--bg-base)] border-b-[3px] border-[var(--text-main)] p-3 select-none shrink-0">
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-0.5">
             {(
@@ -217,7 +309,9 @@ export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
                 key={m.id}
                 type="button"
                 onClick={() => setMode(m.id)}
-                className={`btn-brutal transition-ui px-2 py-0.5 text-[11px] ${mode === m.id ? 'primary' : ''}`}
+                className={`btn-brutal transition-ui px-2 py-0.5 text-[11px] ${
+                  mode === m.id ? 'primary' : ''
+                }`}
               >
                 {m.label}
               </button>
@@ -225,7 +319,7 @@ export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
           </div>
 
           <div className="text-[11px] font-mono tabular-nums text-[var(--accent)] font-bold whitespace-nowrap shrink-0">
-            {format} - {(sampleRate / 1000).toFixed(1)}k/{bitDepth}b
+            {format} · {(sampleRate / 1000).toFixed(1)}k/{bitDepth}b
           </div>
         </div>
 
@@ -245,7 +339,7 @@ export const VisualizerRack: React.FC<VisualizerRackProps> = React.memo(
                     : 'spectrum'
                 )
               }
-              title="CYCLE_VISUALIZER_MODE"
+              title="Cycle visualizer mode"
             />
             <div
               ref={dbReadoutRef}

@@ -1,166 +1,202 @@
-import { ArtistBioData, ListeningLogEntry } from '../types/audio';
+import { ArtistBioData, AudioFormat, ListeningLogEntry } from '../types/audio';
+import { terminalLogger } from './terminalLogger';
 
-const artistBioCache = new Map<string, ArtistBioData>();
+const bioCache = new Map<string, ArtistBioData>();
 
-/**
- * Fetches live artist metadata, biography, tags, and discography from MusicBrainz and Wikipedia REST API.
- * Contains zero hardcoded placeholder artists.
- */
 export async function fetchArtistBiography(
   artistName: string,
   forceRefresh = false
 ): Promise<ArtistBioData> {
   const cleanName = artistName.trim();
-  if (!cleanName || cleanName === 'Unknown Artist') {
+  if (!cleanName || cleanName.toLowerCase() === 'unknown artist') {
     return {
-      name: cleanName || 'No Artist Selected',
-      biography: 'Play or select a track from your local library to automatically fetch artist biography and discography from MusicBrainz and Wikipedia.',
-      tags: [],
+      name: cleanName || 'Unknown Artist',
+      biography: 'Local audio stream without external artist metadata.',
+      tags: ['Local Archive'],
       discography: [],
-      fetchedAt: new Date().toISOString(),
       isLiveWeb: false,
     };
   }
 
-  if (!forceRefresh && artistBioCache.has(cleanName)) {
-    return artistBioCache.get(cleanName)!;
+  const cacheKey = cleanName.toLowerCase();
+  if (!forceRefresh && bioCache.has(cacheKey)) {
+    return bioCache.get(cacheKey)!;
   }
 
   let country: string | undefined;
   let lifeSpan: string | undefined;
   let disambiguation: string | undefined;
   let biography = '';
-  let tags: string[] = [];
-  let discography: { title: string; year: string; type: string }[] = [];
-  let sourceUrl: string | undefined;
   let imageUrl: string | undefined;
+  let sourceUrl: string | undefined;
+  const tags: string[] = [];
+  const discography: { title: string; year: string; type: string }[] = [];
   let isLiveWeb = false;
 
   try {
     const mbSearchUrl = `https://musicbrainz.org/ws/2/artist/?query=artist:${encodeURIComponent(
       cleanName
     )}&fmt=json&limit=1`;
-
     const mbRes = await fetch(mbSearchUrl, {
       headers: { Accept: 'application/json' },
     });
 
     if (mbRes.ok) {
-      const mbData = await mbRes.json();
-      const artistObj = mbData?.artists?.[0];
+      const mbJson = await mbRes.json();
+      const artistObj = mbJson?.artists?.[0];
       if (artistObj) {
         isLiveWeb = true;
-        country = artistObj.area?.name || artistObj.country;
-        const begin = artistObj['life-span']?.begin;
-        const end = artistObj['life-span']?.ended ? artistObj['life-span']?.end : 'Present';
-        if (begin) {
+        country = artistObj.country || artistObj.area?.name;
+        disambiguation = artistObj.disambiguation;
+        if (artistObj['life-span']?.begin) {
+          const begin = artistObj['life-span'].begin.slice(0, 4);
+          const end = artistObj['life-span'].ended
+            ? artistObj['life-span'].end?.slice(0, 4) || ''
+            : 'present';
           lifeSpan = `${begin} – ${end}`;
         }
-        if (artistObj.disambiguation) {
-          disambiguation = artistObj.disambiguation;
-        }
         if (Array.isArray(artistObj.tags)) {
-          tags = artistObj.tags
-            .slice(0, 8)
-            .map((t: { name: string }) => t.name)
-            .filter(Boolean);
+          artistObj.tags
+            .slice(0, 6)
+            .forEach((t: { name?: string }) => t.name && tags.push(t.name));
         }
         sourceUrl = `https://musicbrainz.org/artist/${artistObj.id}`;
 
-        if (artistObj.id) {
-          try {
-            const rgUrl = `https://musicbrainz.org/ws/2/release-group?artist=${artistObj.id}&type=album|ep&fmt=json&limit=8`;
-            const rgRes = await fetch(rgUrl, { headers: { Accept: 'application/json' } });
-            if (rgRes.ok) {
-              const rgData = await rgRes.json();
-              if (Array.isArray(rgData['release-groups']) && rgData['release-groups'].length > 0) {
-                discography = rgData['release-groups']
-                  .map(
-                    (rg: {
-                      title: string;
-                      'first-release-date'?: string;
-                      'primary-type'?: string;
-                    }) => ({
-                      title: rg.title,
-                      year: (rg['first-release-date'] || '—').slice(0, 4),
-                      type: rg['primary-type'] || 'Album',
-                    })
-                  )
-                  .sort((a: { year: string }, b: { year: string }) =>
-                    b.year.localeCompare(a.year)
-                  );
+        const rgUrl = `https://musicbrainz.org/ws/2/release-group?artist=${artistObj.id}&type=album|ep&fmt=json&limit=8`;
+        const rgRes = await fetch(rgUrl, {
+          headers: { Accept: 'application/json' },
+        });
+        if (rgRes.ok) {
+          const rgJson = await rgRes.json();
+          const groups = rgJson?.['release-groups'] || [];
+          groups.forEach(
+            (g: {
+              title?: string;
+              'first-release-date'?: string;
+              'primary-type'?: string;
+            }) => {
+              if (g.title) {
+                discography.push({
+                  title: g.title,
+                  year: g['first-release-date']?.slice(0, 4) || '----',
+                  type: g['primary-type'] || 'Album',
+                });
               }
             }
-          } catch {
-            // ignore release group error
-          }
+          );
+          discography.sort((a, b) => b.year.localeCompare(a.year));
         }
       }
     }
   } catch {
-    // ignore MusicBrainz network error
+    // Ignore MusicBrainz network errors
   }
 
-  // Query Wikipedia REST API (EN then RU fallback)
-  const wikiHosts = ['https://en.wikipedia.org', 'https://ru.wikipedia.org'];
-  for (const host of wikiHosts) {
-    try {
-      const wikiUrl = `${host}/api/rest_v1/page/summary/${encodeURIComponent(cleanName)}`;
-      const wikiRes = await fetch(wikiUrl, { headers: { Accept: 'application/json' } });
-      if (wikiRes.ok) {
-        const wikiData = await wikiRes.json();
-        if (wikiData.extract && wikiData.type !== 'disambiguation') {
-          biography = wikiData.extract;
-          imageUrl = wikiData.thumbnail?.source || imageUrl;
-          sourceUrl = wikiData.content_urls?.desktop?.page || sourceUrl;
-          isLiveWeb = true;
-          break;
+  try {
+    const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
+      cleanName.replace(/\s+/g, '_')
+    )}`;
+    const wikiRes = await fetch(wikiUrl);
+    if (wikiRes.ok) {
+      const wikiJson = await wikiRes.json();
+      if (wikiJson?.extract && wikiJson.type !== 'disambiguation') {
+        biography = wikiJson.extract;
+        isLiveWeb = true;
+        if (wikiJson.thumbnail?.source) {
+          imageUrl = wikiJson.thumbnail.source;
+        }
+        if (wikiJson.content_urls?.desktop?.page) {
+          sourceUrl = wikiJson.content_urls.desktop.page;
         }
       }
-    } catch {
-      // try next
     }
+  } catch {
+    // Ignore Wikipedia network errors
   }
 
   if (!biography) {
-    biography = `No Wikipedia biography article found for "${cleanName}". Metadata and release history are indexed from MusicBrainz and local file tags.`;
+    biography = `${cleanName} — indexed artist in local IceJaZz audio library. ${
+      disambiguation ? `(${disambiguation})` : ''
+    }`.trim();
   }
 
-  const finalData: ArtistBioData = {
+  const result: ArtistBioData = {
     name: cleanName,
     country,
     lifeSpan,
     disambiguation,
     biography,
-    tags,
-    discography,
-    sourceUrl,
     imageUrl,
-    fetchedAt: new Date().toISOString(),
+    tags: tags.length > 0 ? tags : ['Audio Library'],
+    discography: discography.slice(0, 6),
+    sourceUrl,
     isLiveWeb,
   };
 
-  artistBioCache.set(cleanName, finalData);
-  return finalData;
+  bioCache.set(cacheKey, result);
+  terminalLogger.log(
+    'IO',
+    `Fetched metadata profile for "${cleanName}" (${isLiveWeb ? 'Wikipedia/MusicBrainz' : 'Local Cache'})`
+  );
+  return result;
 }
 
-export function parseImportedHistoryJson(rawJson: string): ListeningLogEntry[] {
-  const parsed = JSON.parse(rawJson);
-  const arr = Array.isArray(parsed) ? parsed : parsed.scrobbles || parsed.history || [];
-  return arr
-    .map((item: Record<string, unknown>, idx: number): ListeningLogEntry => ({
-      id: `imp-${Date.now()}-${idx}`,
-      trackId: String(item.trackId || `ext-${idx}`),
-      title: String(item.title || item.track || 'Unknown Track'),
-      artist: String(item.artist || 'Unknown Artist'),
-      album: String(item.album || 'Unknown Album'),
-      genre: String(item.genre || 'Unclassified'),
-      format: (item.format as ListeningLogEntry['format']) || 'FLAC',
+export function parseImportedHistoryJson(jsonText: string): ListeningLogEntry[] {
+  const parsed = JSON.parse(jsonText);
+  const rawList = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.history)
+    ? parsed.history
+    : Array.isArray(parsed?.entries)
+    ? parsed.entries
+    : [];
+
+  const valid: ListeningLogEntry[] = [];
+
+  for (let i = 0; i < rawList.length; i++) {
+    const item = rawList[i];
+    if (!item || typeof item !== 'object') continue;
+
+    const title = String(
+      item.title || item.trackName || item.master_metadata_track_name || ''
+    ).trim();
+    const artist = String(
+      item.artist || item.artistName || item.master_metadata_album_artist_name || 'Unknown Artist'
+    ).trim();
+    if (!title) continue;
+
+    const album = String(
+      item.album || item.albumName || item.master_metadata_album_album_name || 'Unknown Album'
+    ).trim();
+    const genre = String(item.genre || 'Unknown').trim();
+    const rawFormat = String(item.format || 'FLAC').toUpperCase();
+    const format: AudioFormat = (
+      ['FLAC', 'WAV', 'ALAC', 'MP3', 'OGG', 'AAC'].includes(rawFormat)
+        ? rawFormat
+        : 'FLAC'
+    ) as AudioFormat;
+
+    const durationListened = Number(
+      item.durationListened ??
+        (item.msPlayed ? Math.round(item.msPlayed / 1000) : undefined) ??
+        (item.ms_played ? Math.round(item.ms_played / 1000) : 180)
+    );
+
+    const timestamp = item.timestamp || item.endTime || item.ts || new Date().toISOString();
+
+    valid.push({
+      id: item.id || `imp-${Date.now()}-${i}`,
+      trackId: item.trackId || `trk-imp-${i}`,
+      title,
+      artist,
+      album,
+      genre,
+      format,
       sampleRate: Number(item.sampleRate || 44100),
-      bitDepth: Number(item.bitDepth || 16),
-      durationListened: Number(item.durationListened || item.duration || 200),
-      timestamp: String(item.timestamp || item.date || new Date().toISOString()),
-      source: 'lastfm-import',
-    }))
-    .filter((e: ListeningLogEntry) => !isNaN(new Date(e.timestamp).getTime()));
+      durationListened: Math.max(1, durationListened),
+      timestamp: new Date(timestamp).toISOString(),
+    });
+  }
+
+  return valid;
 }

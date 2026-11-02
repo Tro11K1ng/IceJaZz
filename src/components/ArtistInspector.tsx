@@ -1,14 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import {
-  ExternalLink,
-  FolderOpen,
-  Globe,
-  History,
-  Info,
-  Plus,
-  RefreshCw,
-  Star,
-} from 'lucide-react';
 import { ArtistBioData, ListeningLogEntry, TrackItem } from '../types/audio';
 import { fetchArtistBiography } from '../utils/artistService';
 import { AlbumArtwork } from './AlbumArtwork';
@@ -90,7 +80,7 @@ export const ArtistInspector: React.FC<ArtistInspectorProps> = React.memo(
     };
 
     return (
-      <aside className="w-80 shrink-0 bg-[#161920] border-l border-[#262B36] flex flex-col h-full overflow-hidden select-none">
+      <aside className="w-80 shrink-0 bg-[var(--bg-base)] border-l-[3px] border-[var(--text-main)] flex flex-col h-full min-h-0 overflow-hidden select-none">
         {/* Visualizer Module */}
         <VisualizerRack
           isPlaying={isPlaying}
@@ -99,68 +89,59 @@ export const ArtistInspector: React.FC<ArtistInspectorProps> = React.memo(
           format={activeTrack?.format}
         />
 
-        {/* Inspector Tabs */}
-        <div className="grid grid-cols-3 border-b border-[#262B36] bg-[#0F1115] p-1 gap-1">
+        {/* Inspector Tabs without icons */}
+        <div className="grid grid-cols-3 border-b-[3px] border-[var(--text-main)] bg-[var(--bg-surface)] p-1 gap-1 shrink-0">
           <button
             type="button"
             onClick={() => setTab('artist')}
-            className={`flex items-center justify-center gap-1.5 py-1.5 text-xs rounded transition-colors whitespace-nowrap shrink-0 ${
-              tab === 'artist'
-                ? 'bg-[#1E232D] text-white font-medium'
-                : 'text-[#9CA3AF] hover:text-white'
+            className={`btn-brutal transition-ui flex items-center justify-center py-1 px-1.5 text-[11px] whitespace-nowrap shrink-0 ${
+              tab === 'artist' ? 'primary' : ''
             }`}
           >
-            <Globe className="w-3.5 h-3.5 text-blue-400" />
-            <span>Artist Info</span>
+            BIO
           </button>
 
           <button
             type="button"
             onClick={() => setTab('stream')}
-            className={`flex items-center justify-center gap-1.5 py-1.5 text-xs rounded transition-colors whitespace-nowrap shrink-0 ${
-              tab === 'stream'
-                ? 'bg-[#1E232D] text-white font-medium'
-                : 'text-[#9CA3AF] hover:text-white'
+            className={`btn-brutal transition-ui flex items-center justify-center py-1 px-1.5 text-[11px] whitespace-nowrap shrink-0 ${
+              tab === 'stream' ? 'primary' : ''
             }`}
           >
-            <Info className="w-3.5 h-3.5 text-blue-400" />
-            <span>Properties</span>
+            PROPS
           </button>
 
           <button
             type="button"
             onClick={() => setTab('history')}
-            className={`flex items-center justify-center gap-1.5 py-1.5 text-xs rounded transition-colors whitespace-nowrap shrink-0 ${
-              tab === 'history'
-                ? 'bg-[#1E232D] text-white font-medium'
-                : 'text-[#9CA3AF] hover:text-white'
+            className={`btn-brutal transition-ui flex items-center justify-center py-1 px-1.5 text-[11px] whitespace-nowrap shrink-0 ${
+              tab === 'history' ? 'primary' : ''
             }`}
           >
-            <History className="w-3.5 h-3.5 text-blue-400" />
-            <span>History</span>
+            LOG
           </button>
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 brutal-scroll">
           {tab === 'artist' && (
             <>
               {!activeTrack ? (
-                <div className="py-10 text-center text-xs text-[#9CA3AF]">
-                  Select or play a track to automatically fetch artist biography and discography from Wikipedia & MusicBrainz.
+                <div className="py-10 text-center text-xs text-[var(--text-dim)] uppercase font-bold">
+                  NO TRACK SELECTED
                 </div>
               ) : (
                 <>
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <div className="text-[11px] font-mono text-blue-400">
+                      <div className="text-[11px] font-mono text-[var(--accent)] font-bold uppercase">
                         {bioData?.isLiveWeb ? 'Wikipedia / MusicBrainz' : 'Artist Profile'}
                       </div>
-                      <h3 className="text-sm font-semibold text-white mt-0.5">
+                      <h3 className="text-sm font-bold text-[var(--text-main)] mt-0.5 uppercase">
                         {bioData?.name || artistName}
                       </h3>
                       {(bioData?.country || bioData?.lifeSpan) && (
-                        <div className="text-xs text-[#9CA3AF] mt-0.5">
+                        <div className="text-xs text-[var(--text-dim)] mt-0.5">
                           {[bioData.country, bioData.lifeSpan].filter(Boolean).join(' · ')}
                         </div>
                       )}
@@ -170,65 +151,62 @@ export const ArtistInspector: React.FC<ArtistInspectorProps> = React.memo(
                       type="button"
                       onClick={handleRefreshBio}
                       disabled={loadingBio}
-                      className="p-1.5 text-[#9CA3AF] hover:text-white bg-[#0F1115] border border-[#262B36] rounded transition-colors"
-                      title="Refresh artist metadata from web"
+                      className="btn-brutal transition-ui px-2 py-1 text-[10px]"
                     >
-                      <RefreshCw
-                        className={`w-3.5 h-3.5 ${loadingBio ? 'animate-spin text-blue-400' : ''}`}
-                      />
+                      {loadingBio ? '...' : 'SYNC'}
                     </button>
                   </div>
 
                   {bioData?.imageUrl && (
-                    <div className="rounded border border-[#262B36] overflow-hidden h-36 bg-[#0F1115]">
+                    <div className="border-[3px] border-[var(--text-main)] overflow-hidden h-36 bg-[var(--bg-surface)]">
                       <img
                         src={bioData.imageUrl}
                         alt={bioData.name}
                         referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover grayscale"
                       />
                     </div>
                   )}
 
                   {bioData?.disambiguation && (
-                    <div className="text-xs text-[#D1D5DB] bg-[#0F1115] border border-[#262B36] rounded p-2.5">
+                    <div className="text-xs text-[var(--text-main)] bg-[var(--bg-surface)] border-[1px] border-[var(--text-dim)] p-2.5">
                       {bioData.disambiguation}
                     </div>
                   )}
 
                   <div className="space-y-1">
-                    <div className="text-xs font-medium text-[#D1D5DB]">Biography</div>
-                    <p className="text-xs text-[#F3F4F6] leading-relaxed select-text">
+                    <div className="text-xs font-bold text-[var(--text-dim)] uppercase">Biography</div>
+                    <p className="text-xs text-[var(--text-main)] leading-relaxed select-text">
                       {loadingBio
-                        ? 'Fetching biography from Wikipedia and MusicBrainz...'
+                        ? 'Fetching biography...'
                         : bioData?.biography}
                     </p>
                   </div>
 
                   {bioData && bioData.tags.length > 0 && (
-                    <div className="pt-2 border-t border-[#262B36]">
-                      <div className="text-xs text-[#9CA3AF] mb-1">Genre Tags</div>
-                      <div className="text-xs text-blue-400 leading-relaxed">
+                    <div className="pt-2 border-t-[1px] border-[var(--text-dim)]">
+                      <div className="text-xs text-[var(--text-dim)] font-bold uppercase mb-1">Genre Tags</div>
+                      <div className="text-xs text-[var(--accent)] font-bold leading-relaxed uppercase">
                         {bioData.tags.join(' · ')}
                       </div>
                     </div>
                   )}
 
                   {bioData && bioData.discography.length > 0 && (
-                    <div className="pt-2 border-t border-[#262B36] space-y-1.5">
-                      <div className="text-xs font-medium text-[#D1D5DB]">Discography</div>
+                    <div className="pt-2 border-t-[1px] border-[var(--text-dim)] space-y-1.5">
+                      <div className="text-xs font-bold text-[var(--text-dim)] uppercase">Discography</div>
                       <div className="space-y-1">
                         {bioData.discography.map((rel, idx) => (
                           <div
                             key={`${rel.title}-${idx}`}
-                            className="flex items-center justify-between text-xs bg-[#0F1115] px-2.5 py-1.5 rounded border border-[#262B36]"
+                            className="flex items-center justify-between text-xs bg-[var(--bg-surface)] px-2.5 py-1.5 border-[1px] border-[var(--text-dim)]"
                           >
                             <div className="truncate pr-2">
-                              <span className="text-white">{rel.title}</span>
-                              <span className="mx-1.5 text-[#6B7280]">·</span>
-                              <span className="text-xs text-[#9CA3AF]">{rel.type}</span>
+                              <span className="text-[var(--text-main)] font-bold">{rel.title}</span>
+                              <span className="mx-1.5 text-[var(--text-dim)]">/</span>
+                              <span className="text-xs text-[var(--text-dim)]">{rel.type}</span>
                             </div>
-                            <span className="font-mono tabular-nums text-xs text-blue-400 shrink-0">
+                            <span className="font-mono tabular-nums text-xs text-[var(--accent)] font-bold shrink-0">
                               {rel.year}
                             </span>
                           </div>
@@ -242,10 +220,9 @@ export const ArtistInspector: React.FC<ArtistInspectorProps> = React.memo(
                       href={bioData.sourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-[#9CA3AF] hover:text-blue-400 pt-1 transition-colors"
+                      className="inline-block text-xs text-[var(--text-dim)] hover:text-[var(--accent)] pt-1 font-bold uppercase transition-colors"
                     >
-                      <span>Open on Wikipedia / MusicBrainz</span>
-                      <ExternalLink className="w-3 h-3" />
+                      [SOURCE LINK]
                     </a>
                   )}
                 </>
@@ -256,8 +233,8 @@ export const ArtistInspector: React.FC<ArtistInspectorProps> = React.memo(
           {tab === 'stream' && (
             <>
               {!activeTrack ? (
-                <div className="py-10 text-center text-xs text-[#9CA3AF]">
-                  No track selected.
+                <div className="py-10 text-center text-xs text-[var(--text-dim)] font-bold uppercase">
+                  NO TRACK SELECTED
                 </div>
               ) : (
                 <div className="space-y-3.5">
@@ -266,45 +243,48 @@ export const ArtistInspector: React.FC<ArtistInspectorProps> = React.memo(
                       coverUrl={activeTrack.coverUrl}
                       album={activeTrack.album}
                       artist={activeTrack.artist}
-                      className="w-14 h-14 rounded shrink-0"
+                      className="w-14 h-14 border-[2px] border-[var(--text-main)] shrink-0 grayscale"
                     />
                     <div className="min-w-0">
-                      <div className="text-xs font-semibold text-white truncate">
+                      <div className="text-xs font-bold text-[var(--text-main)] truncate uppercase">
                         {activeTrack.title}
                       </div>
-                      <div className="text-xs text-[#D1D5DB] truncate">
+                      <div className="text-xs text-[var(--accent)] font-bold truncate uppercase">
                         {activeTrack.artist}
                       </div>
-                      <div className="text-xs text-[#9CA3AF] truncate">
+                      <div className="text-xs text-[var(--text-dim)] truncate">
                         {activeTrack.album} ({activeTrack.year})
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-[#0F1115] border border-[#262B36] rounded p-3 flex items-center justify-between">
-                    <span className="text-xs text-[#D1D5DB]">Rating:</span>
-                    <div className="flex items-center gap-1">
+                  <div className="bg-[var(--bg-surface)] border-[1px] border-[var(--text-dim)] p-3 flex items-center justify-between">
+                    <span className="text-xs font-bold text-[var(--text-dim)] uppercase">Rating:</span>
+                    <div className="flex items-center gap-1 font-mono">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
                           key={star}
                           type="button"
-                          onClick={() => onUpdateTrackRating(activeTrack.id, star)}
-                          className="p-0.5 text-blue-400 hover:scale-110 transition-transform"
+                          onClick={() =>
+                            onUpdateTrackRating(
+                              activeTrack.id,
+                              activeTrack.rating === star ? 0 : star
+                            )
+                          }
+                          className={`px-0.5 text-sm cursor-pointer transition-transform hover:scale-110 ${
+                            star <= activeTrack.rating
+                              ? 'text-[var(--accent)]'
+                              : 'text-[var(--text-dim)]'
+                          }`}
                         >
-                          <Star
-                            className={`w-4 h-4 ${
-                              star <= activeTrack.rating
-                                ? 'fill-blue-400 text-blue-400'
-                                : 'text-[#374151]'
-                            }`}
-                          />
+                          ★
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="bg-[#0F1115] border border-[#262B36] rounded p-3 space-y-2">
-                    <div className="text-xs font-medium text-[#D1D5DB]">
+                  <div className="bg-[var(--bg-surface)] border-[1px] border-[var(--text-dim)] p-3 space-y-2">
+                    <div className="text-xs font-bold text-[var(--text-dim)] uppercase">
                       Custom Tags
                     </div>
 
@@ -315,7 +295,7 @@ export const ArtistInspector: React.FC<ArtistInspectorProps> = React.memo(
                             key={tag}
                             type="button"
                             onClick={() => handleRemoveTag(tag)}
-                            className="px-2 py-0.5 text-xs bg-[#161920] border border-[#262B36] rounded text-[#D1D5DB] hover:text-rose-400 transition-colors"
+                            className="px-2 py-0.5 text-xs bg-[var(--bg-base)] border-[1px] border-[var(--text-dim)] text-[var(--text-main)] hover:text-red-500 font-bold cursor-pointer"
                             title="Click to remove tag"
                           >
                             {tag} ×
@@ -323,7 +303,7 @@ export const ArtistInspector: React.FC<ArtistInspectorProps> = React.memo(
                         ))}
                       </div>
                     ) : (
-                      <div className="text-xs text-[#6B7280]">No tags assigned.</div>
+                      <div className="text-xs text-[var(--text-dim)]">No tags assigned.</div>
                     )}
 
                     <form onSubmit={handleAddTag} className="flex items-center gap-1.5 pt-1">
@@ -331,53 +311,52 @@ export const ArtistInspector: React.FC<ArtistInspectorProps> = React.memo(
                         type="text"
                         value={newTagText}
                         onChange={(e) => setNewTagText(e.target.value)}
-                        placeholder="Add custom tag..."
-                        className="flex-1 px-2.5 py-1 text-xs bg-[#161920] border border-[#262B36] rounded text-white focus:outline-none focus:border-blue-500"
+                        placeholder="ADD TAG..."
+                        className="flex-1 min-w-0 px-2.5 py-1 text-xs bg-[var(--bg-base)] border-[1px] border-[var(--text-dim)] text-[var(--text-main)] focus:outline-none focus:border-[var(--accent)] font-mono"
                       />
                       <button
                         type="submit"
-                        className="p-1.5 bg-blue-600 text-white rounded hover:bg-blue-500"
+                        className="btn-brutal primary transition-ui px-2.5 py-1 text-xs"
                       >
-                        <Plus className="w-3.5 h-3.5" />
+                        ADD
                       </button>
                     </form>
                   </div>
 
-                  <div className="bg-[#0F1115] border border-[#262B36] rounded p-3 space-y-1.5">
-                    <div className="text-xs font-medium text-[#D1D5DB] mb-1">
+                  <div className="bg-[var(--bg-surface)] border-[1px] border-[var(--text-dim)] p-3 space-y-1.5">
+                    <div className="text-xs font-bold text-[var(--text-dim)] uppercase mb-1">
                       Audio Stream Details
                     </div>
                     <div className="grid grid-cols-2 gap-y-1 text-xs">
-                      <span className="text-[#9CA3AF]">Format:</span>
-                      <span className="font-mono tabular-nums text-blue-400 text-right">
+                      <span className="text-[var(--text-dim)]">Format:</span>
+                      <span className="font-mono tabular-nums text-[var(--accent)] font-bold text-right">
                         {activeTrack.format}
                       </span>
 
-                      <span className="text-[#9CA3AF]">Sample Rate:</span>
-                      <span className="font-mono tabular-nums text-white text-right">
+                      <span className="text-[var(--text-dim)]">Sample Rate:</span>
+                      <span className="font-mono tabular-nums text-[var(--text-main)] font-bold text-right">
                         {(activeTrack.sampleRate / 1000).toFixed(1)} kHz
                       </span>
 
-                      <span className="text-[#9CA3AF]">Bit Depth:</span>
-                      <span className="font-mono tabular-nums text-white text-right">
+                      <span className="text-[var(--text-dim)]">Bit Depth:</span>
+                      <span className="font-mono tabular-nums text-[var(--text-main)] font-bold text-right">
                         {activeTrack.bitDepth} bit ({activeTrack.channels} ch)
                       </span>
 
-                      <span className="text-[#9CA3AF]">Bitrate:</span>
-                      <span className="font-mono tabular-nums text-white text-right">
+                      <span className="text-[var(--text-dim)]">Bitrate:</span>
+                      <span className="font-mono tabular-nums text-[var(--text-main)] font-bold text-right">
                         {activeTrack.bitrate} kbps
                       </span>
 
-                      <span className="text-[#9CA3AF]">File Size:</span>
-                      <span className="font-mono tabular-nums text-white text-right">
+                      <span className="text-[var(--text-dim)]">File Size:</span>
+                      <span className="font-mono tabular-nums text-[var(--text-main)] font-bold text-right">
                         {activeTrack.fileSizeMB} MB
                       </span>
                     </div>
 
-                    <div className="pt-2 mt-2 border-t border-[#262B36] text-[11px] font-mono text-[#9CA3AF] break-all">
-                      <div className="flex items-center gap-1 text-[#D1D5DB] mb-0.5">
-                        <FolderOpen className="w-3 h-3 text-blue-400 shrink-0" />
-                        <span>File Location:</span>
+                    <div className="pt-2 mt-2 border-t-[1px] border-[var(--text-dim)] text-[11px] font-mono text-[var(--text-dim)] break-all">
+                      <div className="text-[var(--text-main)] font-bold mb-0.5 uppercase">
+                        Location:
                       </div>
                       {activeTrack.folderPath}/{activeTrack.fileName}
                     </div>
@@ -390,17 +369,14 @@ export const ArtistInspector: React.FC<ArtistInspectorProps> = React.memo(
           {tab === 'history' && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-[#D1D5DB]">
+                <span className="text-xs font-bold text-[var(--text-dim)] uppercase">
                   Playback Log
-                </span>
-                <span className="text-xs font-mono tabular-nums text-[#9CA3AF]">
-                  {history.length} plays
                 </span>
               </div>
 
               {history.length === 0 ? (
-                <div className="py-10 text-center text-xs text-[#9CA3AF]">
-                  No tracks played yet.
+                <div className="py-10 text-center text-xs text-[var(--text-dim)] uppercase font-bold">
+                  NO TRACKS LOGGED YET
                 </div>
               ) : (
                 <div className="space-y-1.5">
@@ -419,19 +395,19 @@ export const ArtistInspector: React.FC<ArtistInspectorProps> = React.memo(
                       <div
                         key={entry.id}
                         onClick={() => onSelectTrackById(entry.trackId)}
-                        className="bg-[#0F1115] border border-[#262B36] hover:border-blue-500 rounded p-2 cursor-pointer transition-colors"
+                        className="bg-[var(--bg-surface)] border-[1px] border-[var(--text-dim)] hover:border-[var(--accent)] p-2 cursor-pointer transition-colors"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs text-white font-medium truncate">
+                          <span className="text-xs text-[var(--text-main)] font-bold truncate">
                             {entry.title}
                           </span>
-                          <span className="text-[10px] font-mono tabular-nums text-[#9CA3AF] shrink-0">
+                          <span className="text-[10px] font-mono tabular-nums text-[var(--text-dim)] shrink-0">
                             {dateStr} {timeStr}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-xs text-[#9CA3AF] mt-0.5">
+                        <div className="flex items-center justify-between text-xs text-[var(--text-dim)] mt-0.5">
                           <span className="truncate">{entry.artist}</span>
-                          <span className="font-mono text-[10px] text-blue-400 shrink-0">
+                          <span className="font-mono text-[10px] text-[var(--accent)] font-bold shrink-0">
                             {entry.format}
                           </span>
                         </div>

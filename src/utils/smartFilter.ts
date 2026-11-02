@@ -1,113 +1,150 @@
-import { SmartPlaylist, SmartRule, SmartRuleGroup, TrackItem } from '../types/audio';
+import {
+  RuleField,
+  RuleOperator,
+  SmartPlaylist,
+  SmartRule,
+  SmartRuleGroup,
+  TrackItem,
+} from '../types/audio';
 
-const naturalCollator = new Intl.Collator(undefined, {
-  numeric: true,
-  sensitivity: 'base',
-});
+export const FIELD_LABELS: Record<RuleField, string> = {
+  artist: 'Artist',
+  album: 'Album',
+  genre: 'Genre',
+  rating: 'Rating (★ 0–5)',
+  title: 'Track Title',
+  year: 'Release Year',
+  playCount: 'Play Count',
+  duration: 'Duration (sec)',
+  tags: 'Tags',
+  format: 'File Format',
+  bitrate: 'Bitrate (kbps)',
+  sampleRate: 'Sample Rate (Hz)',
+  bitDepth: 'Bit Depth',
+  folderPath: 'Folder Path',
+};
 
-function evaluateRule(track: TrackItem, rule: SmartRule): boolean {
-  const { field, operator, value, valueSecond } = rule;
+export const OPERATOR_LABELS: Record<RuleOperator, string> = {
+  contains: 'contains',
+  equals: 'equals (=)',
+  gte: 'at least (≥)',
+  lte: 'at most (≤)',
+  gt: 'greater than (>)',
+  lt: 'less than (<)',
+  between: 'between (min .. max)',
+  not_equals: 'not equal (≠)',
+  not_contains: 'does not contain',
+};
 
-  if (field === 'tags') {
-    const query = String(value).toLowerCase().trim();
-    if (!query) return true;
-    const hasMatch = track.tags.some((t) => t.toLowerCase().includes(query));
-    if (operator === 'not_contains' || operator === 'not_equals') return !hasMatch;
-    return hasMatch;
-  }
+export const NUMERIC_FIELDS = new Set<RuleField>([
+  'year',
+  'rating',
+  'playCount',
+  'sampleRate',
+  'bitDepth',
+  'bitrate',
+  'duration',
+]);
 
-  const rawTrackVal = track[field];
-  if (rawTrackVal === undefined || rawTrackVal === null) return false;
+function evaluateSingleRule(track: TrackItem, rule: SmartRule): boolean {
+  const rawTrackValue = track[rule.field as keyof TrackItem];
 
-  if (
-    field === 'sampleRate' ||
-    field === 'bitDepth' ||
-    field === 'bitrate' ||
-    field === 'year' ||
-    field === 'rating' ||
-    field === 'playCount' ||
-    field === 'duration'
-  ) {
-    const numTrack = Number(rawTrackVal);
-    const numVal = Number(value);
-    if (isNaN(numVal)) return true;
+  if (NUMERIC_FIELDS.has(rule.field)) {
+    const numVal = Number(rawTrackValue ?? 0);
+    const targetA = Number(rule.value);
+    const targetB = Number(rule.valueSecond ?? rule.value);
 
-    switch (operator) {
+    if (Number.isNaN(targetA)) return true;
+
+    switch (rule.operator) {
       case 'equals':
-        return numTrack === numVal;
+        return numVal === targetA;
       case 'not_equals':
-        return numTrack !== numVal;
+        return numVal !== targetA;
       case 'gt':
-        return numTrack > numVal;
+        return numVal > targetA;
       case 'gte':
-        return numTrack >= numVal;
+        return numVal >= targetA;
       case 'lt':
-        return numTrack < numVal;
+        return numVal < targetA;
       case 'lte':
-        return numTrack <= numVal;
+        return numVal <= targetA;
       case 'between': {
-        const numVal2 = Number(valueSecond ?? numVal);
-        const min = Math.min(numVal, numVal2);
-        const max = Math.max(numVal, numVal2);
-        return numTrack >= min && numTrack <= max;
+        const min = Math.min(targetA, Number.isNaN(targetB) ? targetA : targetB);
+        const max = Math.max(targetA, Number.isNaN(targetB) ? targetA : targetB);
+        return numVal >= min && numVal <= max;
       }
+      case 'contains':
+        return String(numVal).includes(String(rule.value).trim());
+      case 'not_contains':
+        return !String(numVal).includes(String(rule.value).trim());
       default:
-        return numTrack === numVal;
+        return true;
     }
   }
 
-  const strTrack = String(rawTrackVal).toLowerCase();
-  const strVal = String(value).toLowerCase().trim();
-  if (!strVal) return true;
+  const strTrackVal = Array.isArray(rawTrackValue)
+    ? rawTrackValue.join(' ').toLowerCase()
+    : String(rawTrackValue ?? '').toLowerCase();
+  const query = String(rule.value ?? '')
+    .trim()
+    .toLowerCase();
 
-  switch (operator) {
+  if (!query) return true;
+
+  switch (rule.operator) {
     case 'equals':
-      return strTrack === strVal;
+      if (Array.isArray(rawTrackValue)) {
+        return rawTrackValue.some((t) => t.toLowerCase() === query);
+      }
+      return strTrackVal === query;
     case 'not_equals':
-      return strTrack !== strVal;
+      if (Array.isArray(rawTrackValue)) {
+        return !rawTrackValue.some((t) => t.toLowerCase() === query);
+      }
+      return strTrackVal !== query;
     case 'contains':
-    case 'includes_tag':
-      return strTrack.includes(strVal);
+      return strTrackVal.includes(query);
     case 'not_contains':
-      return !strTrack.includes(strVal);
+      return !strTrackVal.includes(query);
     default:
-      return strTrack.includes(strVal);
+      return strTrackVal.includes(query);
   }
 }
 
 function evaluateGroup(track: TrackItem, group: SmartRuleGroup): boolean {
-  if (group.rules.length === 0) return true;
+  if (!group.rules || group.rules.length === 0) return true;
   if (group.logic === 'AND') {
-    return group.rules.every((r) => evaluateRule(track, r));
-  } else {
-    return group.rules.some((r) => evaluateRule(track, r));
+    return group.rules.every((r) => evaluateSingleRule(track, r));
   }
+  return group.rules.some((r) => evaluateSingleRule(track, r));
 }
 
 export function evaluateSmartPlaylist(
   tracks: TrackItem[],
   playlist: SmartPlaylist
 ): TrackItem[] {
+  if (!playlist) return tracks;
+
   const filtered = tracks.filter((track) => {
-    if (playlist.groups.length === 0) return true;
+    if (!playlist.groups || playlist.groups.length === 0) return true;
     if (playlist.rootLogic === 'AND') {
       return playlist.groups.every((g) => evaluateGroup(track, g));
-    } else {
-      return playlist.groups.some((g) => evaluateGroup(track, g));
     }
+    return playlist.groups.some((g) => evaluateGroup(track, g));
   });
 
+  const dir = playlist.sortOrder === 'desc' ? -1 : 1;
+  const sortBy = playlist.sortBy || 'title';
+
   const sorted = [...filtered].sort((a, b) => {
-    const valA = a[playlist.sortBy];
-    const valB = b[playlist.sortBy];
+    const valA = a[sortBy];
+    const valB = b[sortBy];
+
     if (typeof valA === 'number' && typeof valB === 'number') {
-      return playlist.sortOrder === 'asc' ? valA - valB : valB - valA;
+      return (valA - valB) * dir;
     }
-    const strA = String(valA ?? '');
-    const strB = String(valB ?? '');
-    return playlist.sortOrder === 'asc'
-      ? naturalCollator.compare(strA, strB)
-      : naturalCollator.compare(strB, strA);
+    return String(valA ?? '').localeCompare(String(valB ?? '')) * dir;
   });
 
   if (playlist.limit && playlist.limit > 0) {
@@ -116,32 +153,95 @@ export function evaluateSmartPlaylist(
   return sorted;
 }
 
-export const FIELD_LABELS: Record<SmartRule['field'], string> = {
-  format: 'Audio Format (FLAC/MP3/WAV)',
-  sampleRate: 'Sample Rate (Hz)',
-  bitDepth: 'Bit Depth (bit)',
-  bitrate: 'Bitrate (kbps)',
-  genre: 'Genre',
-  artist: 'Artist',
-  album: 'Album',
-  title: 'Track Title',
-  year: 'Release Year',
-  rating: 'Rating (0–5)',
-  playCount: 'Play Count',
-  duration: 'Duration (sec)',
-  tags: 'Custom Tag',
-  folderPath: 'Folder Path',
-};
-
-export const OPERATOR_LABELS: Record<SmartRule['operator'], string> = {
-  equals: 'is (=)',
-  not_equals: 'is not (≠)',
-  contains: 'contains',
-  not_contains: 'does not contain',
-  gt: 'greater than (>)',
-  gte: 'at least (≥)',
-  lt: 'less than (<)',
-  lte: 'at most (≤)',
-  between: 'between',
-  includes_tag: 'has tag',
-};
+export function createDefaultSmartPlaylists(): SmartPlaylist[] {
+  return [
+    {
+      id: 'sp-favorites',
+      name: '★ Favorites (4–5★)',
+      description: 'Highly rated tracks (4 or 5 stars)',
+      rootLogic: 'AND',
+      groups: [
+        {
+          id: 'grp-fav-1',
+          logic: 'AND',
+          rules: [
+            {
+              id: 'rule-stars',
+              field: 'rating',
+              operator: 'gte',
+              value: 4,
+            },
+          ],
+        },
+      ],
+      sortBy: 'rating',
+      sortOrder: 'desc',
+    },
+    {
+      id: 'sp-heavy-rotation',
+      name: 'Heavy Rotation',
+      description: 'Most played tracks in your library',
+      rootLogic: 'AND',
+      groups: [
+        {
+          id: 'grp-heavy-1',
+          logic: 'AND',
+          rules: [
+            {
+              id: 'rule-plays',
+              field: 'playCount',
+              operator: 'gte',
+              value: 1,
+            },
+          ],
+        },
+      ],
+      sortBy: 'playCount',
+      sortOrder: 'desc',
+    },
+    {
+      id: 'sp-with-lyrics',
+      name: 'With Lyrics',
+      description: 'Tracks with embedded or attached lyrics',
+      rootLogic: 'AND',
+      groups: [
+        {
+          id: 'grp-lyr-1',
+          logic: 'AND',
+          rules: [
+            {
+              id: 'rule-lyr',
+              field: 'tags',
+              operator: 'contains',
+              value: 'Lyrics',
+            },
+          ],
+        },
+      ],
+      sortBy: 'title',
+      sortOrder: 'asc',
+    },
+    {
+      id: 'sp-never-played',
+      name: 'Unplayed',
+      description: 'Fresh tracks with zero plays',
+      rootLogic: 'AND',
+      groups: [
+        {
+          id: 'grp-unplayed-1',
+          logic: 'AND',
+          rules: [
+            {
+              id: 'rule-zero',
+              field: 'playCount',
+              operator: 'equals',
+              value: 0,
+            },
+          ],
+        },
+      ],
+      sortBy: 'album',
+      sortOrder: 'asc',
+    },
+  ];
+}

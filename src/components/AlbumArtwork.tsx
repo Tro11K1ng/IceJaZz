@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Disc } from 'lucide-react';
 
 interface AlbumArtworkProps {
   coverUrl?: string;
@@ -30,10 +29,10 @@ export const AlbumArtwork: React.FC<AlbumArtworkProps> = React.memo(
 
     return (
       <div
-        className={`relative overflow-hidden select-none flex items-center justify-center bg-[#161920] border border-[#262B36] text-[#4B5563] ${className}`}
+        className={`relative overflow-hidden select-none flex items-center justify-center bg-[var(--bg-base)] border border-[var(--text-dim)] text-[var(--text-dim)] font-mono text-[10px] font-bold uppercase ${className}`}
         title={`${artist} — ${album}`}
       >
-        <Disc className="w-1/2 h-1/2 stroke-[1.5]" />
+        IJZ
       </div>
     );
   }
